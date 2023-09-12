@@ -44,3 +44,5 @@
 *.iobj
 *.ipdb
 *.pdb
+*.db
+.vs/wnbios_poc/v17/.suo
