@@ -1,6 +1,140 @@
 #include "drv.h"
 
-void gdriver_lib::get_eprocess_offsets() {
+std::string wnbios_lib::random_string()
+{
+	std::string str("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+
+	std::random_device rd;
+	std::mt19937 generator(rd());
+
+	std::shuffle(str.begin(), str.end(), generator);
+
+	return str.substr(0, 32);    
+}
+
+bool wnbios_lib::to_file()
+{
+	drv_name = random_string() + ".sys";
+	std::ofstream out_driver(current_path + drv_name, std::ios::beg | std::ios::binary);
+
+	if (!out_driver.is_open())
+		return 0;
+
+	for (auto& c : driver::wnbios64)
+		out_driver << c;
+	out_driver.close();
+
+	return 1;
+}
+
+bool wnbios_lib::create_service()
+{
+	SC_HANDLE sc_manager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
+
+	if (sc_manager == NULL)
+		return 0;
+
+	service_name = random_string();
+
+	auto service = CreateService(sc_manager, service_name.c_str(), NULL,
+		SERVICE_ALL_ACCESS,
+		SERVICE_KERNEL_DRIVER,
+		SERVICE_DEMAND_START,
+		SERVICE_ERROR_NORMAL,
+		(current_path + drv_name).c_str(),
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL);
+
+	if (service == NULL) {
+
+		service = OpenService(sc_manager, service_name.c_str(), SERVICE_ALL_ACCESS);
+
+		if (service == NULL) {
+			CloseServiceHandle(sc_manager);
+			return 0;
+		}
+	}
+
+	CloseServiceHandle(sc_manager);
+
+	return 1;
+}
+
+bool wnbios_lib::start_service()
+{
+	SC_HANDLE sc_manager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
+
+	if (sc_manager == NULL)
+		return 0;
+
+	auto service = OpenService(sc_manager, service_name.c_str(), SERVICE_ALL_ACCESS);
+
+	if (service == NULL) {
+		CloseServiceHandle(sc_manager);
+		return 0;
+	}
+
+	if (StartService(service, 0, NULL) == NULL) {
+		CloseServiceHandle(sc_manager);
+		CloseServiceHandle(service);
+		return 0;
+	}
+
+	CloseServiceHandle(sc_manager);
+	return 1;
+}
+
+bool wnbios_lib::stop_service()
+{
+	SERVICE_STATUS ss;
+	SC_HANDLE sc_manager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
+
+	if (sc_manager == NULL)
+		return 0;
+
+	auto service = OpenService(sc_manager, service_name.c_str(), SERVICE_ALL_ACCESS);
+
+	if (service == NULL) {
+		CloseServiceHandle(sc_manager);
+		return 0;
+	}
+
+	if (ControlService(service, SERVICE_CONTROL_STOP, &ss) == NULL) {
+		CloseServiceHandle(sc_manager);
+		CloseServiceHandle(service);
+		return 0;
+
+	}
+
+	CloseServiceHandle(sc_manager);
+	CloseServiceHandle(service);
+	return 1;
+}
+
+bool wnbios_lib::delete_service()
+{
+	SC_HANDLE sc_manager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
+
+	if (sc_manager == NULL)
+		return 0;
+
+	auto service = OpenService(sc_manager, service_name.c_str(), SERVICE_ALL_ACCESS);
+
+	if (service == NULL) {
+		CloseServiceHandle(sc_manager);
+		return 0;
+	}
+
+	DeleteService(service);
+	CloseServiceHandle(sc_manager);
+
+	return 1;
+}
+
+void wnbios_lib::get_eprocess_offsets() {
 
 	NTSTATUS(WINAPI * RtlGetVersion)(LPOSVERSIONINFOEXW);
 	OSVERSIONINFOEXW osInfo;
@@ -116,7 +250,7 @@ void gdriver_lib::get_eprocess_offsets() {
 	}
 }
 
-uintptr_t gdriver_lib::leak_kprocess()
+uintptr_t wnbios_lib::leak_kprocess()
 {
 	std::vector<uintptr_t> pointers;
 
@@ -144,7 +278,7 @@ uintptr_t gdriver_lib::leak_kprocess()
 }
 
 
-bool gdriver_lib::leak_kpointers(std::vector<uintptr_t>& pointers)
+bool wnbios_lib::leak_kpointers(std::vector<uintptr_t>& pointers)
 {
 	const unsigned long SystemExtendedHandleInformation = 0x40;
 
@@ -180,21 +314,22 @@ bool gdriver_lib::leak_kpointers(std::vector<uintptr_t>& pointers)
 }
 
 
-uintptr_t gdriver_lib::map_physical(uint64_t address, size_t size, wnbios_mem& mem)
+uintptr_t wnbios_lib::map_physical(uint64_t address, size_t size, wnbios_mem& mem)
 {
 	memset(&mem, 0, sizeof(wnbios_mem));
 	mem.addr = address;
 	mem.size = size;
 	DWORD retSize;
-	BOOL r = DeviceIoControl(hHandle, 0x80102040, &mem, sizeof(wnbios_mem), &mem, sizeof(wnbios_mem), &retSize, 0);
-	if (r)
-		return mem.outPtr;
-	return 0;
+	auto status = DeviceIoControl(hHandle, 0x80102040, &mem, sizeof(wnbios_mem), &mem, sizeof(wnbios_mem), &retSize, 0);
+	if (!status)
+		return 0;
+	
+	return mem.outPtr;
 }
 
-uintptr_t gdriver_lib::unmap_physical(wnbios_mem& mem)
+uintptr_t wnbios_lib::unmap_physical(wnbios_mem& mem)
 {
-	u32 bytes_returned;
+	DWORD bytes_returned;
 	auto status = DeviceIoControl(hHandle, 0x80102044, &mem, sizeof(wnbios_mem), 0, 0, &bytes_returned, 0);
 	if (!status)
 		return 0;
@@ -202,7 +337,7 @@ uintptr_t gdriver_lib::unmap_physical(wnbios_mem& mem)
 	return 1;
 }
 
-uintptr_t gdriver_lib::get_system_dirbase()
+uintptr_t wnbios_lib::get_system_dirbase()
 {
 	for (int i = 0; i < 10; i++)
 	{
@@ -227,7 +362,7 @@ uintptr_t gdriver_lib::get_system_dirbase()
 	return NULL;
 }
 
-uintptr_t gdriver_lib::get_process_id(const char* image_name)
+uintptr_t wnbios_lib::get_process_id(const char* image_name)
 {
 	HANDLE hsnap;
 	PROCESSENTRY32 pt;
@@ -247,7 +382,7 @@ uintptr_t gdriver_lib::get_process_id(const char* image_name)
 	return 1;
 }
 
-uintptr_t gdriver_lib::get_process_base(const char* image_name)
+uintptr_t wnbios_lib::get_process_base(const char* image_name)
 {
 	get_eprocess_offsets();
 	cr3 = get_system_dirbase();
@@ -260,8 +395,8 @@ uintptr_t gdriver_lib::get_process_base(const char* image_name)
 	if (!kprocess_initial)
 		return NULL;
 
-	printf("system_kprocess: %llx\n", kprocess_initial);
-	printf("system_cr3: %llx\n", cr3);
+	//printf("system_kprocess: %llx\n", kprocess_initial);
+	//printf("system_cr3: %llx\n", cr3);
 
 	const unsigned long limit = 400;
 
@@ -292,22 +427,23 @@ uintptr_t gdriver_lib::get_process_base(const char* image_name)
 
 		if (strstr(image_name, name) && process_id == get_process_id(image_name))
 		{
-			printf("process_id: %i\n", process_id);
-			printf("process_base: %llx\n", base_address);
-			printf("process_cr3: %llx\n", directory_table);
+			//printf("process_id: %i\n", process_id);
+			//printf("process_base: %llx\n", base_address);
+			//printf("process_cr3: %llx\n", directory_table);
 
 			image_base_out = base_address;
 			cr3 = directory_table;
+			attached_proc = process_id;
 
 			break;
 		}
 	}
-
+	
 	return image_base_out;
 }
 
 
-bool gdriver_lib::read_physical_memory(uintptr_t physical_address, void* output, unsigned long size)
+bool wnbios_lib::read_physical_memory(uintptr_t physical_address, void* output, unsigned long size)
 {
 	wnbios_mem mem;
 	uintptr_t virtual_address = map_physical(physical_address, size, mem);
@@ -320,7 +456,7 @@ bool gdriver_lib::read_physical_memory(uintptr_t physical_address, void* output,
 	return true;
 }
 
-bool gdriver_lib::write_physical_memory(uintptr_t physical_address, void* data, unsigned long size)
+bool wnbios_lib::write_physical_memory(uintptr_t physical_address, void* data, unsigned long size)
 {
 	if (!data)
 		return false;
@@ -336,7 +472,7 @@ bool gdriver_lib::write_physical_memory(uintptr_t physical_address, void* data, 
 	return true;
 }
 
-uintptr_t gdriver_lib::convert_virtual_to_physical(uintptr_t virtual_address)
+uintptr_t wnbios_lib::convert_virtual_to_physical(uintptr_t virtual_address)
 {
 	uintptr_t va = virtual_address;
 
@@ -381,7 +517,7 @@ uintptr_t gdriver_lib::convert_virtual_to_physical(uintptr_t virtual_address)
 	return (PTE & 0xFFFFFFFFFF000) + (va & 0xFFF);
 }
 
-bool gdriver_lib::read_virtual_memory(uintptr_t address, LPVOID output, unsigned long size)
+bool wnbios_lib::read_virtual_memory(uintptr_t address, LPVOID output, unsigned long size)
 {
 	if (!address)
 		return false;
@@ -398,7 +534,7 @@ bool gdriver_lib::read_virtual_memory(uintptr_t address, LPVOID output, unsigned
 	return true;
 }
 
-bool gdriver_lib::write_virtual_memory(uintptr_t address, LPVOID data, unsigned long size)
+bool wnbios_lib::write_virtual_memory(uintptr_t address, LPVOID data, unsigned long size)
 {
 	uintptr_t physical_address = convert_virtual_to_physical(address);
 
