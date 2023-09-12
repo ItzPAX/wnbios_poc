@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.7.34018.315
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wnbios_poc", "wnbios_poc\wnbios_poc.vcxproj", "{43E4E217-67D8-483C-B0F9-12B1B4A35E8D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{43E4E217-67D8-483C-B0F9-12B1B4A35E8D}.Debug|x64.ActiveCfg = Debug|x64
+		{43E4E217-67D8-483C-B0F9-12B1B4A35E8D}.Debug|x64.Build.0 = Debug|x64
+		{43E4E217-67D8-483C-B0F9-12B1B4A35E8D}.Debug|x86.ActiveCfg = Debug|Win32
+		{43E4E217-67D8-483C-B0F9-12B1B4A35E8D}.Debug|x86.Build.0 = Debug|Win32
+		{43E4E217-67D8-483C-B0F9-12B1B4A35E8D}.Release|x64.ActiveCfg = Release|x64
+		{43E4E217-67D8-483C-B0F9-12B1B4A35E8D}.Release|x64.Build.0 = Release|x64
+		{43E4E217-67D8-483C-B0F9-12B1B4A35E8D}.Release|x86.ActiveCfg = Release|Win32
+		{43E4E217-67D8-483C-B0F9-12B1B4A35E8D}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F31791B4-F646-4BC4-9B7E-305995595BD4}
+	EndGlobalSection
+EndGlobal
