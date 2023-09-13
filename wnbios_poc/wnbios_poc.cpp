@@ -14,7 +14,7 @@ int main()
 		system("pause");
 		return false;
 	}
-	
+
 	UINT8 buf[3] = { 0 };
 	driver.read_virtual_memory(base, buf, 2);
 	printf("%s\n", buf);

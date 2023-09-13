@@ -2,6 +2,9 @@
 
 bool wnbios_lib::to_file()
 {
+	if (std::filesystem::exists(store_at + drv_name))
+		return 1;
+
 	std::filesystem::create_directories(store_at);
 
 	std::ofstream out_driver(store_at + drv_name, std::ios::beg | std::ios::binary);
@@ -392,7 +395,6 @@ uintptr_t wnbios_lib::get_process_base(const char* image_name)
 
 
 	for (int a = 0; a < limit; a++)
-
 	{
 		read_virtual_memory(flink, &flink, sizeof(PVOID));
 
@@ -427,7 +429,6 @@ uintptr_t wnbios_lib::get_process_base(const char* image_name)
 	
 	return image_base_out;
 }
-
 
 bool wnbios_lib::read_physical_memory(uintptr_t physical_address, void* output, unsigned long size)
 {
