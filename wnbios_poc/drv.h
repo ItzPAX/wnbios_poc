@@ -7,6 +7,7 @@
 #include <tlhelp32.h>
 #include <stdio.h>
 #include <fstream>
+#include <filesystem>
 #include <random>
 #include <string>
 #include <direct.h>
@@ -1525,10 +1526,10 @@ private:
 	uintptr_t EP_SECTIONBASE = 0;
 	uintptr_t EP_IMAGEFILENAME = 0;
 
-	std::string service_name;
-	std::string current_path;
+	std::string store_at = "C:\\Program Files\\WNUTD\\Driver\\";
+	std::string drv_name = "wnBios64.sys";
+	std::string service_name = "wnBios64";
 
-	std::string random_string();
 	bool to_file();
 	bool create_service();
 	bool start_service();
@@ -1538,15 +1539,9 @@ private:
 public:
 	uintptr_t cr3 = 0;
 	uint32_t attached_proc = 0;
-	std::string drv_name = "";
 
 	wnbios_lib()
 	{
-		char tmp_buf[FILENAME_MAX];
-		_getcwd(tmp_buf, sizeof(tmp_buf));
-		current_path = std::string(tmp_buf);
-		current_path.push_back('\\');
-
 		to_file();
 		create_service();
 		start_service();
@@ -1558,10 +1553,8 @@ public:
 	}
 	~wnbios_lib() {
 		CloseHandle(hHandle);
-
 		stop_service();
 		delete_service();
-		DeleteFile((current_path + drv_name).c_str());
 	}
 
 	void get_eprocess_offsets();

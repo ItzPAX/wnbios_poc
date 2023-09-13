@@ -1,22 +1,10 @@
 #include "drv.h"
 
-std::string wnbios_lib::random_string()
-{
-	std::string str("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
-
-	std::random_device rd;
-	std::mt19937 generator(rd());
-
-	std::shuffle(str.begin(), str.end(), generator);
-
-	return str.substr(0, 32);    
-}
-
 bool wnbios_lib::to_file()
 {
-	drv_name = random_string() + ".sys";
-	std::ofstream out_driver(current_path + drv_name, std::ios::beg | std::ios::binary);
+	std::filesystem::create_directories(store_at);
 
+	std::ofstream out_driver(store_at + drv_name, std::ios::beg | std::ios::binary);
 	if (!out_driver.is_open())
 		return 0;
 
@@ -34,14 +22,12 @@ bool wnbios_lib::create_service()
 	if (sc_manager == NULL)
 		return 0;
 
-	service_name = random_string();
-
 	auto service = CreateService(sc_manager, service_name.c_str(), NULL,
 		SERVICE_ALL_ACCESS,
 		SERVICE_KERNEL_DRIVER,
 		SERVICE_DEMAND_START,
 		SERVICE_ERROR_NORMAL,
-		(current_path + drv_name).c_str(),
+		(store_at + drv_name).c_str(),
 		NULL,
 		NULL,
 		NULL,
